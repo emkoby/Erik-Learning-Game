@@ -30,8 +30,9 @@
 
       const vertices = new Float32Array([
         -0.5, -0.5, 0.0,
+        -0.5, 0.5, 0.0,
         0.5, -0.5, 0.0,
-        0.0, 0.5, 0.0,
+        0.5, 0.5, 0.0,
       ]);
 
       const vertexBuffer = device.createBuffer({
@@ -41,6 +42,19 @@
       });
 
       device.queue.writeBuffer(vertexBuffer, 0, vertices);
+
+      const indices = new Uint16Array([
+        0, 1, 2,
+        1, 2, 3,
+      ]);
+
+      const indexBuffer = device.createBuffer({
+        label: "Cell indices",
+        size: indices.byteLength,
+        usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+      });
+
+      device.queue.writeBuffer(indexBuffer, 0, indices);
 
       const vertexBufferLayout = {
         arrayStride: 12,
@@ -53,16 +67,23 @@
 
       const cellShaderModule = device.createShaderModule({
         label: "Cell shader",
-        code: `
+        code: /* wgsl */ `
+          struct VertexOutput {
+            @builtin(position) Position: vec4f,
+            @location(0) fragColor: vec4f,
+          };
+
           @vertex
-          fn vertexMain(@location(0) pos: vec3f) ->
-            @builtin(position) vec4f {
-            return vec4f(pos.x, pos.y, pos.z, 1);
+          fn vertexMain(@location(0) pos: vec3f) -> VertexOutput {
+              var vertexOutput: VertexOutput;
+              vertexOutput.Position = vec4f(pos, 1.0);
+              vertexOutput.fragColor = vec4f(1, 0, 0, 0);
+              return vertexOutput;
           }
 
           @fragment
-          fn fragmentMain() -> @location(0) vec4f {
-            return vec4f(1, 0, 0, 1);
+          fn fragmentMain(fragmentInput: VertexOutput) -> @location(0) vec4f {
+            return fragmentInput.fragColor;
           }
         `
       });
@@ -97,7 +118,8 @@
 
       pass.setPipeline(cellPipeline);
       pass.setVertexBuffer(0, vertexBuffer);
-      pass.draw(vertices.length / 3);
+      pass.setIndexBuffer(indexBuffer, "uint16");
+      pass.drawIndexed(indices.length);
 
       pass.end();
 
