@@ -26,8 +26,10 @@ function createCircleVertices({
   };
 
   for (let i = 0; i < numSubdivisions; ++i) {
-    const angle1 = startAngle + (i + 0) * (endAngle - startAngle) / numSubdivisions;
-    const angle2 = startAngle + (i + 1) * (endAngle - startAngle) / numSubdivisions;
+    const angle1 =
+      startAngle + ((i + 0) * (endAngle - startAngle)) / numSubdivisions;
+    const angle2 =
+      startAngle + ((i + 1) * (endAngle - startAngle)) / numSubdivisions;
 
     const c1 = Math.cos(angle1);
     const s1 = Math.sin(angle1);
@@ -54,10 +56,10 @@ function createCircleVertices({
 const adapter = await navigator.gpu?.requestAdapter();
 const device = await adapter?.requestDevice();
 if (!device) {
-  fail('need a browser that supports WebGPU');
+  fail("need a browser that supports WebGPU");
 }
-const canvas = document.querySelector('canvas');
-const context = canvas.getContext('webgpu');
+const canvas = document.querySelector("canvas");
+const context = canvas.getContext("webgpu");
 const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
 context.configure({
   device,
@@ -66,22 +68,22 @@ context.configure({
 
 // Load shaders
 const vertexShader = device.createShaderModule({
-  code: await (await fetch('./shaders/vertex.wgsl')).text(),
+  code: await (await fetch("./shaders/vertex.wgsl")).text(),
 });
 const fragmentShader = device.createShaderModule({
-  code: await (await fetch('./shaders/fragment.wgsl')).text(),
+  code: await (await fetch("./shaders/fragment.wgsl")).text(),
 });
 
 // Create pipeline
 const pipeline = device.createRenderPipeline({
-  label: 'our hardcoded rgb triangle pipeline',
-  layout: 'auto',
+  label: "our hardcoded rgb triangle pipeline",
+  layout: "auto",
   vertex: {
-    entryPoint: 'vertexShader',
+    entryPoint: "vertexShader",
     module: vertexShader,
   },
   fragment: {
-    entryPoint: 'fragmentShader',
+    entryPoint: "fragmentShader",
     module: fragmentShader,
     targets: [{ format: presentationFormat }],
   },
@@ -93,21 +95,14 @@ const { vertexData, numVertices } = createCircleVertices({
   innerRadius: 0.25,
 });
 const vertexStorageBuffer = device.createBuffer({
-  label: 'storage buffer vertices',
+  label: "storage buffer vertices",
   size: vertexData.byteLength,
   usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
 });
 device.queue.writeBuffer(vertexStorageBuffer, 0, vertexData);
 
 // Create attributes uniform buffer
-const uniformBufferSize =
-  4 * 4 +
-  2 * 4 +
-  2 * 4;
-const uniformBuffer = device.createBuffer({
-  size: uniformBufferSize,
-  usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-});
+const uniformBufferSize = 4 * 4 + 2 * 4 + 2 * 4;
 
 // Create uniform buffers and values for all circles
 const uniformValues = new Float32Array(uniformBufferSize / 4);
@@ -143,35 +138,47 @@ for (let i = 0; i < kNumObjects; ++i) {
 
 // Create render pass descriptor
 const renderPassDescriptor = {
-  label: 'our basic canvas renderPass',
+  label: "our basic canvas renderPass",
   colorAttachments: [
     {
       clearValue: [0.3, 0.3, 0.3, 1],
-      loadOp: 'clear',
-      storeOp: 'store',
+      loadOp: "clear",
+      storeOp: "store",
     },
   ],
 };
 
-const observer = new ResizeObserver(entries => {
+const observer = new ResizeObserver((entries) => {
   for (const entry of entries) {
     const canvas = entry.target;
     const width = entry.contentBoxSize[0].inlineSize;
     const height = entry.contentBoxSize[0].blockSize;
-    canvas.width = Math.max(1, Math.min(width, device.limits.maxTextureDimension2D));
-    canvas.height = Math.max(1, Math.min(height, device.limits.maxTextureDimension2D));
+    canvas.width = Math.max(
+      1,
+      Math.min(width, device.limits.maxTextureDimension2D),
+    );
+    canvas.height = Math.max(
+      1,
+      Math.min(height, device.limits.maxTextureDimension2D),
+    );
   }
 });
 observer.observe(canvas);
 
 export function render(alpha) {
-  renderPassDescriptor.colorAttachments[0].view =
-    context.getCurrentTexture().createView();
+  renderPassDescriptor.colorAttachments[0].view = context
+    .getCurrentTexture()
+    .createView();
   const encoder = device.createCommandEncoder();
   const pass = encoder.beginRenderPass(renderPassDescriptor);
   pass.setPipeline(pipeline);
   const aspect = canvas.width / canvas.height;
-  for (const { scale, bindGroup, uniformBuffer, uniformValues } of objectInfos) {
+  for (const {
+    scale,
+    bindGroup,
+    uniformBuffer,
+    uniformValues,
+  } of objectInfos) {
     uniformValues.set([scale / aspect, scale], kScaleOffset);
     device.queue.writeBuffer(uniformBuffer, 0, uniformValues);
     pass.setBindGroup(0, bindGroup);
