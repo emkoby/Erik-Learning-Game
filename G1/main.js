@@ -2,11 +2,10 @@ import * as render from "./render.js";
 import * as geometry from "./geometry.js";
 
 async function main() {
+  // Initialize static geometry
+  const { vertexData, vertexCount } = geometry.makeTriangle();
+  const init = await render.initialize(vertexData, vertexCount);
   // Initialize game state
-  // const { staticVertexData, staticVertexCount } = levelGenerator.generateLevel();
-  // const { staticVertexData, staticVertexCount } = geometry.makeCube();
-  const { staticVertexData, staticVertexCount } = geometry.makeTriangle();
-  const init = await render.initialize(staticVertexData, staticVertexCount);
   // Game loop
   const GAME_STEP = 1 / 60;
   const MAX_FRAME_TIME = 0.25;
