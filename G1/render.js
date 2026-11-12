@@ -1,4 +1,4 @@
-export async function initialize(staticVertexData, staticVertexCount) {
+export async function initialize(geometryData) {
   // Initialize WebGPU
   const adapter = await navigator.gpu?.requestAdapter();
   const device = await adapter?.requestDevice();
@@ -22,7 +22,7 @@ export async function initialize(staticVertexData, staticVertexCount) {
   });
   // Create pipeline
   const pipeline = device.createRenderPipeline({
-    label: "Red Triangle",
+    label: "Red Shapes",
     layout: "auto",
     vertex: {
       entryPoint: "vertexShader",
@@ -44,16 +44,21 @@ export async function initialize(staticVertexData, staticVertexCount) {
   });
   // Create a buffer for the static vertex data
   const staticVertexBuffer = device.createBuffer({
-    size: staticVertexData.byteLength,
+    size: geometryData["vertices"].byteLength,
     usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
   });
-  device.queue.writeBuffer(staticVertexBuffer, 0, staticVertexData);
+  device.queue.writeBuffer(staticVertexBuffer, 0, geometryData["vertices"]);
+  // Create a buffer for the static index data
+  const staticIndexBuffer = device.createBuffer({
+    size: geometryData["indices"].byteLength,
+    usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+  });
+  device.queue.writeBuffer(staticIndexBuffer, 0, geometryData["indices"]);
   // Create initial render pass descriptor
   const renderPassDescriptor = {
     label: "our basic canvas renderPass",
     colorAttachments: [
       {
-        // view: <- to be filled out when we render
         clearValue: [0.3, 0.3, 0.3, 1],
         loadOp: "clear",
         storeOp: "store",
@@ -66,7 +71,8 @@ export async function initialize(staticVertexData, staticVertexCount) {
     context,
     pipeline,
     staticVertexBuffer,
-    staticVertexCount,
+    staticIndexBuffer,
+    geometryData,
     renderPassDescriptor,
   };
 }
@@ -77,7 +83,8 @@ export function render(init, ALPHA) {
     context,
     pipeline,
     staticVertexBuffer,
-    staticVertexCount,
+    staticIndexBuffer,
+    geometryData,
     renderPassDescriptor,
   } = init;
   // Update the render pass descriptor with the current texture view
@@ -88,8 +95,21 @@ export function render(init, ALPHA) {
   const encoder = device.createCommandEncoder();
   const pass = encoder.beginRenderPass(renderPassDescriptor);
   pass.setPipeline(pipeline);
+  // Set buffers
   pass.setVertexBuffer(0, staticVertexBuffer);
-  pass.draw(staticVertexCount, 1, 0, 0);
+  pass.setIndexBuffer(staticIndexBuffer, "uint32");
+  // Draw the triangle
+  const triangle = geometryData["triangle"];
+  pass.drawIndexed(
+    triangle.indexCount,
+    1,
+    triangle.firstIndex,
+    triangle.baseVertex,
+  );
+  // Draw the square
+  const square = geometryData["square"];
+  pass.drawIndexed(square.indexCount, 1, square.firstIndex, square.baseVertex);
+  // End the render pass
   pass.end();
   // Submit the commands
   const commandBuffer = encoder.finish();

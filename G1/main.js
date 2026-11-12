@@ -1,10 +1,10 @@
 import * as render from "./render.js";
-import * as geometry from "./geometry.js";
+import { initGeometry } from "./geometry.js";
 
 async function main() {
   // Initialize static geometry
-  const { vertexData, vertexCount } = geometry.makeTriangle();
-  const init = await render.initialize(vertexData, vertexCount);
+  const geometryData = initGeometry();
+  const init = await render.initialize(geometryData);
   // Initialize game state
   // Game loop
   const GAME_STEP = 1 / 60;
