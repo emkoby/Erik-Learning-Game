@@ -22,8 +22,8 @@ export function initGeometry() {
   };
   vertices.push(...square.vertexData);
   indices.push(...square.indexData);
-  offset += square.vertexData.length / 4;
-  // Add verticies and indices to geometryData
+  offset += square.vertexData.length / 3;
+  // Add vertices and indices to geometryData
   geometryData["vertices"] = new Float32Array(vertices);
   geometryData["indices"] = new Uint32Array(indices);
   return geometryData;
@@ -33,13 +33,13 @@ function makeTriangle() {
   const vertexData = new Float32Array([
     0,
     0.5,
+    0, // Vertex 0
+    -0.5,
+    -0.5,
     0, // Vertex 1
-    -0.5,
-    -0.5,
-    0, // Vertex 2
     0.5,
     -0.5,
-    0, // Vertex 3
+    0, // Vertex 2
   ]);
   const indexData = new Uint16Array([0, 1, 2]);
   return { vertexData, indexData };
@@ -49,16 +49,16 @@ function makeSquare() {
   const vertexData = new Float32Array([
     -0.5,
     0.5,
-    0, // Vertex 1
+    0, // Vertex 0
     -0.5,
+    -0.5,
+    0, // Vertex 1
+    0.5,
     -0.5,
     0, // Vertex 2
     0.5,
-    -0.5,
+    0.5,
     0, // Vertex 3
-    0.5,
-    0.5,
-    0, // Vertex 4
   ]);
   const indexData = new Uint16Array([0, 1, 2, 2, 3, 0]);
   return { vertexData, indexData };

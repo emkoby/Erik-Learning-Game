@@ -1,10 +1,13 @@
-import * as render from "./render.js";
+import { initRender, startRender } from "./render.js";
 import { initGeometry } from "./geometry.js";
+import { generateLevelData } from "./level.js";
 
 async function main() {
-  // Initialize static geometry
+  // Initialize geometry
   const geometryData = initGeometry();
-  const init = await render.initialize(geometryData);
+  // Initialize level layout
+  const levelData = generateLevelData(geometryData);
+  const init = await initRender(geometryData, levelData);
   // Initialize game state
   // Game loop
   const GAME_STEP = 1 / 60;
@@ -28,7 +31,7 @@ async function main() {
 
     // Game rendering
     const ALPHA = Math.min(accumulatedTime / GAME_STEP, 1);
-    render.render(init, ALPHA);
+    startRender(init, ALPHA);
   }
   requestAnimationFrame((time) => {
     previousTime = time;

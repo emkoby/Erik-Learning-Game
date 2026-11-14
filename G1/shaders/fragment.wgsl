@@ -1,3 +1,8 @@
-@fragment fn fragmentShader() -> @location(0) vec4f {
-  return vec4f(1.0, 0.0, 0.0, 1.0);
+struct VertexOutput {
+  @builtin(position) position: vec4f,
+  @location(0) color: vec4f,
+};
+
+@fragment fn fragmentShader(vertexOutput: VertexOutput) -> @location(0) vec4f {
+  return vertexOutput.color;
 }
