@@ -1,3 +1,5 @@
+import { mat4 } from "https://wgpu-matrix.org/dist/3.x/wgpu-matrix.module.js";
+
 export async function initRender(geometryData, levelData) {
   // Initialize WebGPU
   const adapter = await navigator.gpu?.requestAdapter();
@@ -36,27 +38,18 @@ export async function initRender(geometryData, levelData) {
             { shaderLocation: 0, offset: 0, format: "float32x3" }, // xyz
           ],
         },
-        {
-          arrayStride: 4 + 3 * 4,
-          stepMode: "instance",
-          attributes: [
-            { shaderLocation: 1, offset: 0, format: "unorm8x4" }, // color
-            { shaderLocation: 2, offset: 4, format: "float32x3" }, // offset
-          ],
-        },
-        {
-          arrayStride: 3 * 4,
-          stepMode: "instance",
-          attributes: [
-            { shaderLocation: 3, offset: 0, format: "float32x3" }, // scale
-          ],
-        },
       ],
     },
     fragment: {
       entryPoint: "fragmentShader",
       module: fragmentShader,
       targets: [{ format: presentationFormat }],
+    },
+    primitive: { topology: "triangle-list", cullMode: "back" },
+    depthStencil: {
+      format: "depth24plus",
+      depthWriteEnabled: true,
+      depthCompare: "less",
     },
   });
   // Create a buffer for the vertex data
@@ -76,50 +69,17 @@ export async function initRender(geometryData, levelData) {
   for (const shape in levelData["geometry"]) {
     geometryCount += levelData["geometry"][shape]["instances"].length;
   }
-  // Create a buffer for static attributes
-  const staticUnitSize =
-    4 + // color
-    3 * 4; // offset
-  const staticVertexBufferSize = staticUnitSize * geometryCount;
-  const staticVertexBuffer = device.createBuffer({
-    label: "static vertex for objects",
-    size: staticVertexBufferSize,
-    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+  // Create a buffer for matrices and colors
+  const objectUnitSize = 4 * 4 + 4; // 4x4 matrix + vec4 color
+  const objectBufferSize = geometryCount * objectUnitSize;
+  const objectData = new Float32Array(objectBufferSize);
+  const cameraBuffer = device.createBuffer({
+    size: 64,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
-  // Populate static buffer with values
-  const staticVertexValuesU8 = new Uint8Array(staticVertexBufferSize);
-  const staticVertexValuesF32 = new Float32Array(staticVertexValuesU8.buffer);
-  let rollingOffset = 0;
-  for (const shape in levelData["geometry"]) {
-    // Set colors
-    levelData["geometry"][shape]["instances"].forEach((instance, i) => {
-      const staticOffsetU8 = i * staticUnitSize + rollingOffset;
-      const staticOffsetF32 = staticOffsetU8 / 4;
-      staticVertexValuesU8.set(
-        [
-          instance["color"][0] * 255,
-          instance["color"][1] * 255,
-          instance["color"][2] * 255,
-          instance["color"][3] * 255,
-        ],
-        staticOffsetU8,
-      );
-      staticVertexValuesF32.set(
-        [instance["offset"][0], instance["offset"][1], instance["offset"][2]],
-        staticOffsetF32 + 1,
-      );
-    });
-    rollingOffset +=
-      levelData["geometry"][shape]["instances"].length * staticUnitSize;
-  }
-  device.queue.writeBuffer(staticVertexBuffer, 0, staticVertexValuesF32);
-  // Create a buffer for dynamic attributes
-  const dynamicUnitSize = 3 * 4; // scale
-  const dynamicVertexBufferSize = dynamicUnitSize * geometryCount;
-  const dynamicVertexBuffer = device.createBuffer({
-    label: "dynamic storage for objects",
-    size: dynamicVertexBufferSize,
-    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+  const objectBuffer = device.createBuffer({
+    size: objectData.byteLength,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
   // Create initial render pass descriptor
   const renderPassDescriptor = {
@@ -131,7 +91,20 @@ export async function initRender(geometryData, levelData) {
         storeOp: "store",
       },
     ],
+    depthStencilAttachment: {
+      depthClearValue: 1.0,
+      depthLoadOp: "clear",
+      depthStoreOp: "store",
+    },
   };
+  // Set bind group for camera and object data
+  const bindGroup = device.createBindGroup({
+    layout: pipeline.getBindGroupLayout(0),
+    entries: [
+      { binding: 0, resource: { buffer: cameraBuffer } },
+      { binding: 1, resource: { buffer: objectBuffer } },
+    ],
+  });
   // Form initialization object
   const init = {
     device,
@@ -140,12 +113,13 @@ export async function initRender(geometryData, levelData) {
     canvas,
     vertexBuffer,
     indexBuffer,
-    staticVertexBuffer,
-    dynamicVertexBuffer,
-    dynamicVertexBufferSize,
-    dynamicUnitSize,
     levelData,
     renderPassDescriptor,
+    cameraBuffer,
+    objectBuffer,
+    objectUnitSize,
+    objectBufferSize,
+    bindGroup,
   };
   // Start canvas observer
   const observer = new ResizeObserver((entries) => {
@@ -169,6 +143,7 @@ export async function initRender(geometryData, levelData) {
   return init;
 }
 
+let depthTexture;
 export function startRender(init, ALPHA) {
   const {
     device,
@@ -177,43 +152,88 @@ export function startRender(init, ALPHA) {
     canvas,
     vertexBuffer,
     indexBuffer,
-    staticVertexBuffer,
-    dynamicVertexBuffer,
-    dynamicVertexBufferSize,
-    dynamicUnitSize,
     levelData,
     renderPassDescriptor,
+    cameraBuffer,
+    objectBuffer,
+    objectUnitSize,
+    objectBufferSize,
+    bindGroup,
   } = init;
+  // Set depth texture
+  if (
+    !depthTexture ||
+    depthTexture.width !== canvas.width ||
+    depthTexture.height !== canvas.height
+  ) {
+    depthTexture?.destroy();
+    depthTexture = device.createTexture({
+      size: [canvas.width, canvas.height],
+      format: "depth24plus",
+      usage: GPUTextureUsage.RENDER_ATTACHMENT,
+    });
+  }
   // Update the render pass descriptor with the current texture view
   renderPassDescriptor.colorAttachments[0].view = context
     .getCurrentTexture()
     .createView();
+  // Update the depth texture view in the render pass descriptor
+  renderPassDescriptor.depthStencilAttachment.view = depthTexture.createView();
   // Create a command encoder and render pass
   const encoder = device.createCommandEncoder();
   const pass = encoder.beginRenderPass(renderPassDescriptor);
   pass.setPipeline(pipeline);
+  pass.setBindGroup(0, bindGroup);
   // Set buffers
   pass.setVertexBuffer(0, vertexBuffer);
   pass.setIndexBuffer(indexBuffer, "uint32");
-  pass.setVertexBuffer(1, staticVertexBuffer);
-  pass.setVertexBuffer(2, dynamicVertexBuffer);
-  const aspect = canvas.width / canvas.height;
-  const dynamicValues = new Float32Array(dynamicVertexBufferSize / 4);
+  // Calculate projection matrix
+  const fov = (60 * Math.PI) / 180;
+  const aspectRatio = canvas.width / canvas.height;
+  const zNear = 0.1;
+  const zFar = 1000;
+  const perspective = mat4.perspective(fov, aspectRatio, zNear, zFar);
+  // Calculate view matrix
+  const eye = [10, 10, 10];
+  const target = [0, 0, 0];
+  const up = [0, 1, 0];
+  const view = mat4.lookAt(eye, target, up);
+  // Pass camera to buffer
+  device.queue.writeBuffer(cameraBuffer, 0, mat4.multiply(perspective, view));
+  // Calculate model matrix for each instance
+  const objectValues = new Float32Array(objectBufferSize);
   let rollingOffset = 0;
   let firstInstance = 0;
   for (const shape in levelData["geometry"]) {
-    // Set scales
+    // Calculate model matrix and color for each instance
     levelData["geometry"][shape]["instances"].forEach((instance, i) => {
-      const offset = (i * dynamicUnitSize) / 4 + rollingOffset;
-      const newScale = [
-        instance["scale"][0] / aspect,
-        instance["scale"][1],
-        instance["scale"][2],
-      ];
-      dynamicValues.set(newScale, offset);
+      const offset = i * objectUnitSize + rollingOffset;
+      const matrix = mat4.create();
+      mat4.identity(matrix);
+      mat4.translate(
+        matrix,
+        [
+          instance["translation"][0],
+          instance["translation"][1],
+          instance["translation"][2],
+        ],
+        matrix,
+      );
+      mat4.rotateX(matrix, (instance["rotation"][0] * Math.PI) / 180, matrix);
+      mat4.rotateY(matrix, (instance["rotation"][1] * Math.PI) / 180, matrix);
+      mat4.rotateZ(matrix, (instance["rotation"][2] * Math.PI) / 180, matrix);
+      mat4.scale(
+        matrix,
+        [instance["scale"][0], instance["scale"][1], instance["scale"][2]],
+        matrix,
+      );
+      objectValues.set(matrix, offset);
+      // Set color for the instance
+      const colorOffset = offset + 4 * 4;
+      objectValues.set(instance["color"], colorOffset);
     });
     rollingOffset +=
-      (levelData["geometry"][shape]["instances"].length * dynamicUnitSize) / 4;
+      levelData["geometry"][shape]["instances"].length * objectUnitSize;
     // Draw calls
     const instanceCount = levelData["geometry"][shape]["instances"].length;
     console.log(`Drawing ${instanceCount} instances of shape: ${shape}`);
@@ -228,7 +248,8 @@ export function startRender(init, ALPHA) {
     }
     firstInstance += instanceCount;
   }
-  device.queue.writeBuffer(dynamicVertexBuffer, 0, dynamicValues);
+  device.queue.writeBuffer(objectBuffer, 0, objectValues);
+
   // End the render pass
   pass.end();
   // Submit the commands

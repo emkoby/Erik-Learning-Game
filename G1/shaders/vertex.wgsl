@@ -1,8 +1,12 @@
+struct Camera { viewProj: mat4x4f };
+
+struct ObjectData {
+  model: mat4x4f,
+  color: vec4f,
+};
+
 struct Vertex {
   @location(0) position: vec3f,
-  @location(1) color: vec4f,
-  @location(2) offset: vec3f,
-  @location(3) scale: vec3f,
 };
 
 struct VertexOutput {
@@ -10,9 +14,13 @@ struct VertexOutput {
   @location(0) color: vec4f,
 };
 
-@vertex fn vertexShader(vertex: Vertex) -> VertexOutput {
+@group(0) @binding(0) var<uniform> camera: Camera;
+@group(0) @binding(1) var<storage, read> objects: array<ObjectData>;
+
+@vertex fn vertexShader(vertex: Vertex, @builtin(instance_index) i: u32) -> VertexOutput {
   var output: VertexOutput;
-  output.position = vec4f(vertex.position * vertex.scale + vertex.offset, 1.0);
-  output.color = vertex.color;
+  let object = objects[i];
+  output.position = camera.viewProj * object.model * vec4f(vertex.position, 1.0);
+  output.color = object.color;
   return output;
 }
