@@ -31,7 +31,7 @@ async function main() {
 
     // Game rendering
     const ALPHA = Math.min(accumulatedTime / GAME_STEP, 1);
-    startRender(init, ALPHA);
+    startRender(init, currentTime, ALPHA);
   }
   requestAnimationFrame((time) => {
     previousTime = time;

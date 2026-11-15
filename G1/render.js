@@ -144,7 +144,8 @@ export async function initRender(geometryData, levelData) {
 }
 
 let depthTexture;
-export function startRender(init, ALPHA) {
+export function startRender(init, currentTime, ALPHA) {
+  currentTime = currentTime / 1000;
   const {
     device,
     context,
@@ -220,7 +221,11 @@ export function startRender(init, ALPHA) {
         matrix,
       );
       mat4.rotateX(matrix, (instance["rotation"][0] * Math.PI) / 180, matrix);
-      mat4.rotateY(matrix, (instance["rotation"][1] * Math.PI) / 180, matrix);
+      mat4.rotateY(
+        matrix,
+        (instance["rotation"][1] * Math.PI) / 180 + currentTime,
+        matrix,
+      );
       mat4.rotateZ(matrix, (instance["rotation"][2] * Math.PI) / 180, matrix);
       mat4.scale(
         matrix,
