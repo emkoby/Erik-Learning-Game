@@ -1,6 +1,7 @@
 export function initGeometry() {
   const vertices = [];
   const indices = [];
+  const normals = [];
   const geometryData = {};
   let offset = 0;
   // Make cube geometry
@@ -12,10 +13,12 @@ export function initGeometry() {
   };
   vertices.push(...cube.vertexData);
   indices.push(...cube.indexData);
+  normals.push(...cube.normalData);
   offset += cube.vertexData.length / 3;
   // Add vertices and indices to geometryData
   geometryData["vertices"] = new Float32Array(vertices);
   geometryData["indices"] = new Uint32Array(indices);
+  geometryData["normals"] = new Float32Array(normals);
   return geometryData;
 }
 
@@ -84,5 +87,25 @@ function makeCube() {
     3,
     1, // Bottom face
   ]);
-  return { vertexData, indexData };
+  const normalData = new Uint16Array([
+    0,
+    0,
+    -1, // Back face
+    0,
+    0,
+    1, // Front face
+    -1,
+    0,
+    0, // Left face
+    1,
+    0,
+    0, // Right face
+    0,
+    1,
+    0, // Top face
+    0,
+    -1,
+    0, // Bottom face
+  ]);
+  return { vertexData, indexData, normalData };
 }

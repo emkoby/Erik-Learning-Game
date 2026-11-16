@@ -1,5 +1,11 @@
 import { mat4 } from "https://wgpu-matrix.org/dist/3.x/wgpu-matrix.module.js";
 
+import {
+  makeShaderDataDefinitions,
+  makeStructuredView,
+  getSizeAndAlignmentOfUnsizedArrayElement,
+} from "https://greggman.github.io/webgpu-utils/dist/2.x/webgpu-utils.module.js";
+
 export async function initRender(geometryData, levelData) {
   // Initialize WebGPU
   const adapter = await navigator.gpu?.requestAdapter();
@@ -16,17 +22,21 @@ export async function initRender(geometryData, levelData) {
     format: presentationFormat,
   });
   // Load shaders
+  const vertexShaderCode = await (
+    await fetch("./shaders/vertex.wgsl?v=" + Date.now())
+  ).text();
+  const fragmentShaderCode = await (
+    await fetch("./shaders/fragment.wgsl?v=" + Date.now())
+  ).text();
   const vertexShader = device.createShaderModule({
-    code: await (await fetch("./shaders/vertex.wgsl?v=' + Date.now()")).text(),
+    code: vertexShaderCode,
   });
   const fragmentShader = device.createShaderModule({
-    code: await (
-      await fetch("./shaders/fragment.wgsl?v=' + Date.now()")
-    ).text(),
+    code: fragmentShaderCode,
   });
   // Create pipeline
   const pipeline = device.createRenderPipeline({
-    label: "Red Shapes",
+    label: "Basic 3d Pipeline",
     layout: "auto",
     vertex: {
       entryPoint: "vertexShader",
@@ -54,31 +64,42 @@ export async function initRender(geometryData, levelData) {
   });
   // Create a buffer for the vertex data
   const vertexBuffer = device.createBuffer({
+    label: "vertexBuffer",
     size: geometryData["vertices"].byteLength,
     usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
   });
   device.queue.writeBuffer(vertexBuffer, 0, geometryData["vertices"]);
-  // Create a buffer for the static index data
+  // Create a buffer for the index data
   const indexBuffer = device.createBuffer({
+    label: "indexBuffer",
     size: geometryData["indices"].byteLength,
     usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
   });
   device.queue.writeBuffer(indexBuffer, 0, geometryData["indices"]);
+  // Create a buffer for the camera
+  const cameraBuffer = device.createBuffer({
+    label: "cameraBuffer",
+    size: 64,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+  // Create shader data definitions and structured view for object data
+  const shaderDataDefinitions = makeShaderDataDefinitions(vertexShaderCode);
+  const objectUnitSize =
+    shaderDataDefinitions.storages.objects.typeDefinition.elementType.size;
   // Establish object count
   let geometryCount = 0;
   for (const shape in levelData["geometry"]) {
     geometryCount += levelData["geometry"][shape]["instances"].length;
   }
-  // Create a buffer for matrices and colors
-  const objectUnitSize = 4 * 4 + 4; // 4x4 matrix + vec4 color
-  const objectBufferSize = geometryCount * objectUnitSize;
-  const objectData = new Float32Array(objectBufferSize);
-  const cameraBuffer = device.createBuffer({
-    size: 64,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  });
-  const objectBuffer = device.createBuffer({
-    size: objectData.byteLength,
+  // Make structured view for object data
+  const objectsView = makeStructuredView(
+    shaderDataDefinitions.storages.objects,
+    new ArrayBuffer(geometryCount * objectUnitSize),
+  );
+  // Create a buffer for the object data
+  const objectsBuffer = device.createBuffer({
+    label: "objectsBuffer",
+    size: objectsView.arrayBuffer.byteLength,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
   // Create initial render pass descriptor
@@ -102,7 +123,7 @@ export async function initRender(geometryData, levelData) {
     layout: pipeline.getBindGroupLayout(0),
     entries: [
       { binding: 0, resource: { buffer: cameraBuffer } },
-      { binding: 1, resource: { buffer: objectBuffer } },
+      { binding: 1, resource: { buffer: objectsBuffer } },
     ],
   });
   // Form initialization object
@@ -111,14 +132,13 @@ export async function initRender(geometryData, levelData) {
     context,
     pipeline,
     canvas,
+    levelData,
     vertexBuffer,
     indexBuffer,
-    levelData,
-    renderPassDescriptor,
     cameraBuffer,
-    objectBuffer,
-    objectUnitSize,
-    objectBufferSize,
+    objectsView,
+    objectsBuffer,
+    renderPassDescriptor,
     bindGroup,
   };
   // Start canvas observer
@@ -151,14 +171,13 @@ export function startRender(init, currentTime, ALPHA) {
     context,
     pipeline,
     canvas,
+    levelData,
     vertexBuffer,
     indexBuffer,
-    levelData,
-    renderPassDescriptor,
     cameraBuffer,
-    objectBuffer,
-    objectUnitSize,
-    objectBufferSize,
+    objectsView,
+    objectsBuffer,
+    renderPassDescriptor,
     bindGroup,
   } = init;
   // Set depth texture
@@ -202,13 +221,10 @@ export function startRender(init, currentTime, ALPHA) {
   // Pass camera to buffer
   device.queue.writeBuffer(cameraBuffer, 0, mat4.multiply(perspective, view));
   // Calculate model matrix for each instance
-  const objectValues = new Float32Array(objectBufferSize);
-  let rollingOffset = 0;
   let firstInstance = 0;
   for (const shape in levelData["geometry"]) {
     // Calculate model matrix and color for each instance
     levelData["geometry"][shape]["instances"].forEach((instance, i) => {
-      const offset = i * objectUnitSize + rollingOffset;
       const matrix = mat4.create();
       mat4.identity(matrix);
       mat4.translate(
@@ -232,16 +248,12 @@ export function startRender(init, currentTime, ALPHA) {
         [instance["scale"][0], instance["scale"][1], instance["scale"][2]],
         matrix,
       );
-      objectValues.set(matrix, offset);
+      objectsView.views[i].model.set(matrix);
       // Set color for the instance
-      const colorOffset = offset + 4 * 4;
-      objectValues.set(instance["color"], colorOffset);
+      objectsView.views[i].color.set(instance["color"]);
     });
-    rollingOffset +=
-      levelData["geometry"][shape]["instances"].length * objectUnitSize;
     // Draw calls
     const instanceCount = levelData["geometry"][shape]["instances"].length;
-    console.log(`Drawing ${instanceCount} instances of shape: ${shape}`);
     if (instanceCount > 0) {
       pass.drawIndexed(
         levelData["geometry"][shape]["shape"]["indexCount"],
@@ -253,7 +265,8 @@ export function startRender(init, currentTime, ALPHA) {
     }
     firstInstance += instanceCount;
   }
-  device.queue.writeBuffer(objectBuffer, 0, objectValues);
+
+  device.queue.writeBuffer(objectsBuffer, 0, objectsView.arrayBuffer);
 
   // End the render pass
   pass.end();
