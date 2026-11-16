@@ -48,6 +48,12 @@ export async function initRender(geometryData, levelData) {
             { shaderLocation: 0, offset: 0, format: "float32x3" }, // xyz
           ],
         },
+        {
+          arrayStride: 3 * 4,
+          attributes: [
+            { shaderLocation: 1, offset: 0, format: "float32x3" }, // normal
+          ],
+        },
       ],
     },
     fragment: {
@@ -69,6 +75,13 @@ export async function initRender(geometryData, levelData) {
     usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
   });
   device.queue.writeBuffer(vertexBuffer, 0, geometryData["vertices"]);
+  // Create a buffer for the normal data
+  const normalBuffer = device.createBuffer({
+    label: "normalBuffer",
+    size: geometryData["normals"].byteLength,
+    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+  });
+  device.queue.writeBuffer(normalBuffer, 0, geometryData["normals"]);
   // Create a buffer for the index data
   const indexBuffer = device.createBuffer({
     label: "indexBuffer",
@@ -134,6 +147,7 @@ export async function initRender(geometryData, levelData) {
     canvas,
     levelData,
     vertexBuffer,
+    normalBuffer,
     indexBuffer,
     cameraBuffer,
     objectsView,
@@ -173,6 +187,7 @@ export function startRender(init, currentTime, ALPHA) {
     canvas,
     levelData,
     vertexBuffer,
+    normalBuffer,
     indexBuffer,
     cameraBuffer,
     objectsView,
@@ -206,6 +221,7 @@ export function startRender(init, currentTime, ALPHA) {
   pass.setBindGroup(0, bindGroup);
   // Set buffers
   pass.setVertexBuffer(0, vertexBuffer);
+  pass.setVertexBuffer(1, normalBuffer);
   pass.setIndexBuffer(indexBuffer, "uint32");
   // Calculate projection matrix
   const fov = (60 * Math.PI) / 180;

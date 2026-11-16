@@ -23,89 +23,52 @@ export function initGeometry() {
 }
 
 function makeCube() {
+  // 24 vertices: 4 per face
   const vertexData = new Float32Array([
-    -1,
-    -1,
-    -1, // Vertex 0
-    -1,
-    -1,
-    1, // Vertex 1
-    1,
-    -1,
-    -1, // Vertex 2
-    1,
-    -1,
-    1, // Vertex 3
-    -1,
-    1,
-    -1, // Vertex 4
-    -1,
-    1,
-    1, // Vertex 5
-    1,
-    1,
-    -1, // Vertex 6
-    1,
-    1,
-    1, // Vertex 7
+    // Front (+Z)
+    -1, -1, 1, 1, -1, 1, 1, 1, 1, -1, 1, 1,
+    // Back (-Z)
+    1, -1, -1, -1, -1, -1, -1, 1, -1, 1, 1, -1,
+    // Right (+X)
+    1, -1, 1, 1, -1, -1, 1, 1, -1, 1, 1, 1,
+    // Left (-X)
+    -1, -1, -1, -1, -1, 1, -1, 1, 1, -1, 1, -1,
+    // Top (+Y)
+    -1, 1, 1, 1, 1, 1, 1, 1, -1, -1, 1, -1,
+    // Bottom (-Y)
+    -1, -1, -1, 1, -1, -1, 1, -1, 1, -1, -1, 1,
   ]);
+
+  // Same order: each face's normal repeated 4 times
+  const normalData = new Float32Array([
+    // Front
+    0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1,
+    // Back
+    0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1,
+    // Right
+    1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0,
+    // Left
+    -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0,
+    // Top
+    0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0,
+    // Bottom
+    0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0,
+  ]);
+
+  // 2 triangles per face, counter-clockwise when seen from outside
   const indexData = new Uint16Array([
-    0,
-    4,
-    2,
-    2,
-    4,
-    6, // Back face
-    5,
-    1,
-    3,
-    3,
-    7,
-    5, // Front face
-    4,
-    0,
-    1,
-    1,
-    5,
-    4, // Left face
-    7,
-    3,
-    2,
-    2,
-    6,
-    7, // Right face
-    4,
-    5,
-    7,
-    7,
-    6,
-    4, // Top face
-    1,
-    0,
-    2,
-    2,
-    3,
-    1, // Bottom face
-  ]);
-  const normalData = new Uint16Array([
-    0,
-    0,
-    -1, // Back face
-    0,
-    0,
-    1, // Front face
-    -1,
-    0,
-    0, // Left face
-    1,
-    0,
-    0, // Right face
-    0,
-    1,
-    0, // Top face
-    0,
-    -1,
-    0, // Bottom face
+    // Front
+    0, 1, 2, 0, 2, 3,
+    // Back
+    4, 5, 6, 4, 6, 7,
+    // Right
+    8, 9, 10, 8, 10, 11,
+    // Left
+    12, 13, 14, 12, 14, 15,
+    // Top
+    16, 17, 18, 16, 18, 19,
+    // Bottom
+    20, 21, 22, 20, 22, 23,
   ]);
   return { vertexData, indexData, normalData };
 }

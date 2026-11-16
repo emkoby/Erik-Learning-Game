@@ -7,11 +7,13 @@ struct ObjectData {
 
 struct Vertex {
   @location(0) position: vec3f,
+  @location(1) normal: vec3f,
 };
 
 struct VertexOutput {
   @builtin(position) position: vec4f,
   @location(0) color: vec4f,
+  @location(1) normal: vec3f,
 };
 
 @group(0) @binding(0) var<uniform> camera: Camera;
@@ -22,5 +24,6 @@ struct VertexOutput {
   let object = objects[i];
   output.position = camera.viewProj * object.model * vec4f(vertex.position, 1.0);
   output.color = object.color;
+  output.normal = vertex.normal;
   return output;
 }
