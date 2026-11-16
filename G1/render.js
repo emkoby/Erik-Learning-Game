@@ -3,7 +3,6 @@ import { mat4 } from "https://wgpu-matrix.org/dist/3.x/wgpu-matrix.module.js";
 import {
   makeShaderDataDefinitions,
   makeStructuredView,
-  getSizeAndAlignmentOfUnsizedArrayElement,
 } from "https://greggman.github.io/webgpu-utils/dist/2.x/webgpu-utils.module.js";
 
 export async function initRender(geometryData, levelData) {
@@ -236,50 +235,59 @@ export function startRender(init, currentTime, ALPHA) {
   const view = mat4.lookAt(eye, target, up);
   // Pass camera to buffer
   device.queue.writeBuffer(cameraBuffer, 0, mat4.multiply(perspective, view));
+  // Set light direction for the scene
+  const lightDirection = [0, -1, -1];
   // Calculate model matrix for each instance
   let firstInstance = 0;
+  let offset = 0;
   for (const shape in levelData["geometry"]) {
     // Calculate model matrix and color for each instance
     levelData["geometry"][shape]["instances"].forEach((instance, i) => {
-      const matrix = mat4.create();
-      mat4.identity(matrix);
+      const model = mat4.create();
+      mat4.identity(model);
       mat4.translate(
-        matrix,
+        model,
         [
           instance["translation"][0],
           instance["translation"][1],
           instance["translation"][2],
         ],
-        matrix,
+        model,
       );
-      mat4.rotateX(matrix, (instance["rotation"][0] * Math.PI) / 180, matrix);
+      mat4.rotateX(model, (instance["rotation"][0] * Math.PI) / 180, model);
       mat4.rotateY(
-        matrix,
+        model,
         (instance["rotation"][1] * Math.PI) / 180 + currentTime,
-        matrix,
+        model,
       );
-      mat4.rotateZ(matrix, (instance["rotation"][2] * Math.PI) / 180, matrix);
+      mat4.rotateZ(model, (instance["rotation"][2] * Math.PI) / 180, model);
       mat4.scale(
-        matrix,
+        model,
         [instance["scale"][0], instance["scale"][1], instance["scale"][2]],
-        matrix,
+        model,
       );
-      objectsView.views[i].model.set(matrix);
+      objectsView.views[i + offset].model.set(model);
+      // Set world matrix for the instance
+      const world = mat4.transpose(mat4.inverse(model));
+      objectsView.views[i + offset].world.set(world);
       // Set color for the instance
-      objectsView.views[i].color.set(instance["color"]);
+      objectsView.views[i + offset].color.set(instance["color"]);
+      // Set light direction for the instance
+      objectsView.views[i + offset].lightDirection.set(lightDirection);
     });
     // Draw calls
     const instanceCount = levelData["geometry"][shape]["instances"].length;
+    console.log(`Drawing ${instanceCount} instances of ${shape}`);
     if (instanceCount > 0) {
       pass.drawIndexed(
         levelData["geometry"][shape]["shape"]["indexCount"],
         instanceCount,
         levelData["geometry"][shape]["shape"]["firstIndex"],
         levelData["geometry"][shape]["shape"]["baseVertex"],
-        firstInstance,
+        offset,
       );
     }
-    firstInstance += instanceCount;
+    offset += instanceCount;
   }
 
   device.queue.writeBuffer(objectsBuffer, 0, objectsView.arrayBuffer);

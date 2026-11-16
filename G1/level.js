@@ -1,6 +1,35 @@
 export function generateLevelData(geometryData) {
   const levelData = {};
   levelData["geometry"] = {
+    pyramid: {
+      shape: geometryData["pyramid"],
+      instances: [
+        {
+          translation: [0, 0, 3],
+          rotation: [0, 0, 0],
+          scale: [1, 1, 1],
+          color: [0, 1, 0, 1],
+        },
+        {
+          translation: [-3, 0, 3],
+          rotation: [0, 0, 0],
+          scale: [1, 1, 1],
+          color: [1, 0, 0, 1],
+        },
+        {
+          translation: [3, 0, 3],
+          rotation: [0, 0, 0],
+          scale: [1, 1, 1],
+          color: [0, 0, 1, 1],
+        },
+        {
+          translation: [6, 0, 3],
+          rotation: [0, 0, 0],
+          scale: [1, 1, 1],
+          color: [1, 1, 0, 1],
+        },
+      ],
+    },
     cube: {
       shape: geometryData["cube"],
       instances: [
