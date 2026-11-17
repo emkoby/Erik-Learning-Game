@@ -249,6 +249,5 @@ function overlap(box1, box2) {
 function resetPlayer(playerData, levelSpawn) {
   playerData["translation"] = [levelSpawn[0], levelSpawn[1], levelSpawn[2]];
   playerData["rotation"] = [0, 0, 0];
-  playerData["scale"] = [1, 1, 1];
   playerData["status"] = MovementStatus.STANDING;
 }

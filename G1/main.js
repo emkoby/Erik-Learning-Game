@@ -8,7 +8,7 @@ async function main() {
   const geometryData = initGeometry();
   // Initialize level layout and graphics
   const init = await initRender();
-  let levelNumber = 2;
+  let levelNumber = 3;
   let levelData = generateLevelData(geometryData, levelNumber);
   let levelGraphics = await loadLevelGraphics(init, geometryData, levelData);
   let hitGoal = false;
@@ -45,7 +45,11 @@ async function main() {
     }
     // If goal completed, move to next level
     if (hitGoal) {
-      levelNumber++;
+      if (levelData["name"] !== "Level End") {
+        levelNumber++;
+      } else {
+        levelNumber = 1;
+      }
       levelData = generateLevelData(geometryData, levelNumber);
       levelGraphics = await loadLevelGraphics(init, geometryData, levelData);
       hitGoal = false;
