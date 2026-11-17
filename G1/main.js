@@ -35,24 +35,18 @@ async function main() {
   let accumulatedTime = 0;
   function gameLoop(currentTime) {
     requestAnimationFrame(gameLoop);
-
     let deltaTime = (currentTime - previousTime) / 1000;
     previousTime = currentTime;
     if (deltaTime > MAX_FRAME_TIME) {
       deltaTime = MAX_FRAME_TIME;
     }
-
     // Game logic
     accumulatedTime += deltaTime;
     while (accumulatedTime >= GAME_STEP) {
       // Handle player input
-      let playerData = levelData["geometry"]["player"]["instances"][0];
-      let levelGrid = levelData["geometry"]["levelGrid"];
-      handleInput(keys, playerData, levelGrid, deltaTime);
-      levelData["geometry"]["player"]["instances"][0] = playerData;
+      handleInput(keys, levelData, deltaTime);
       accumulatedTime -= GAME_STEP;
     }
-
     // Game rendering
     const ALPHA = Math.min(accumulatedTime / GAME_STEP, 1);
     startRender(init, currentTime, ALPHA);

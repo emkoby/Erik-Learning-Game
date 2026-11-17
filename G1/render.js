@@ -231,18 +231,14 @@ export function startRender(init, currentTime, ALPHA) {
   // Calculate view matrix
   const playerLocation =
     levelData["geometry"]["player"]["instances"][0]["translation"];
-  const eye = [
-    playerLocation[0] - 3,
-    playerLocation[1] + 5,
-    playerLocation[2] - 5,
-  ];
+  const eye = [playerLocation[0], playerLocation[1] + 5, playerLocation[2] - 5];
   const target = playerLocation;
   const up = [0, 1, 0];
   const view = mat4.lookAt(eye, target, up);
   // Pass camera to buffer
   device.queue.writeBuffer(cameraBuffer, 0, mat4.multiply(perspective, view));
   // Set light direction for the scene
-  const lightDirection = [0, -1, -1];
+  const lightDirection = [0.3, -1, 0.5];
   // Calculate model matrix for each instance
   let firstInstance = 0;
   let offset = 0;
