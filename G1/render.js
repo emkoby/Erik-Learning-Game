@@ -229,8 +229,14 @@ export function startRender(init, currentTime, ALPHA) {
   const zFar = 1000;
   const perspective = mat4.perspective(fov, aspectRatio, zNear, zFar);
   // Calculate view matrix
-  const eye = [10, 10, 10];
-  const target = [0, 0, 0];
+  const playerLocation =
+    levelData["geometry"]["player"]["instances"][0]["translation"];
+  const eye = [
+    playerLocation[0] - 3,
+    playerLocation[1] + 5,
+    playerLocation[2] - 5,
+  ];
+  const target = playerLocation;
   const up = [0, 1, 0];
   const view = mat4.lookAt(eye, target, up);
   // Pass camera to buffer
@@ -255,11 +261,7 @@ export function startRender(init, currentTime, ALPHA) {
         model,
       );
       mat4.rotateX(model, (instance["rotation"][0] * Math.PI) / 180, model);
-      mat4.rotateY(
-        model,
-        (instance["rotation"][1] * Math.PI) / 180 + currentTime,
-        model,
-      );
+      mat4.rotateY(model, (instance["rotation"][1] * Math.PI) / 180, model);
       mat4.rotateZ(model, (instance["rotation"][2] * Math.PI) / 180, model);
       mat4.scale(
         model,
@@ -277,7 +279,6 @@ export function startRender(init, currentTime, ALPHA) {
     });
     // Draw calls
     const instanceCount = levelData["geometry"][shape]["instances"].length;
-    console.log(`Drawing ${instanceCount} instances of ${shape}`);
     if (instanceCount > 0) {
       pass.drawIndexed(
         levelData["geometry"][shape]["shape"]["indexCount"],
