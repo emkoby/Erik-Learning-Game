@@ -13,12 +13,13 @@ export function handleInput(keys, levelData, deltaTime) {
   const playerData = levelData["geometry"]["player"]["instances"][0];
   const levelGrid = levelData["geometry"]["levelGrid"];
   const levelKill = levelData["geometry"]["levelKill"];
+  const levelGoal = levelData["geometry"]["levelGoal"];
   if (!playerData["status"]) {
     playerData["status"] = MovementStatus.STANDING;
   }
   const playerSpeed = playerData["speed"];
   const playerJumpStrength = playerData["jumpStrength"];
-  const gravity = 5;
+  const gravity = 7;
   const yaw = Math.atan2(0, -5);
   const forwardX = -Math.sin(yaw);
   const forwardZ = -Math.cos(yaw);
@@ -30,6 +31,7 @@ export function handleInput(keys, levelData, deltaTime) {
   let movementY = 0;
   let movementZ = 0;
   let hitKill = false;
+  let hitGoal = false;
   if (keys["KeyW"]) {
     movementX += forwardX;
     movementZ += forwardZ;
@@ -64,8 +66,12 @@ export function handleInput(keys, levelData, deltaTime) {
       break;
     case MovementStatus.JUMPING2:
       playerData["jumpTime"] += deltaTime;
-      if (playerData["jumpTime"] >= 0.2) {
-        playerData["status"] = MovementStatus.JUMPING3;
+      if (playerData["jumpTime"] >= 0.3) {
+        if (keys["Space"]) {
+          playerData["status"] = MovementStatus.JUMPING3;
+        } else {
+          playerData["status"] = MovementStatus.FALLING;
+        }
       }
       movementY += upY * playerJumpStrength;
       break;
@@ -90,18 +96,24 @@ export function handleInput(keys, levelData, deltaTime) {
   // Calculate vertical movement
   movementY = movementY * deltaTime;
   // Perform collision detection after calculating final movement values
-  ({ movementX, movementY, movementZ, hitKill } = movementCollisionDetection(
-    movementX,
-    movementY,
-    movementZ,
-    playerData,
-    levelGrid,
-    levelKill,
-  ));
+  ({ movementX, movementY, movementZ, hitKill, hitGoal } =
+    movementCollisionDetection(
+      movementX,
+      movementY,
+      movementZ,
+      playerData,
+      levelGrid,
+      levelKill,
+      levelGoal,
+    ));
   // If player hit killbox, reset
   if (hitKill) {
     resetPlayer(playerData, levelData["levelSpawn"]);
     return;
+  }
+  // If player hit goal, set hitGoal to true
+  if (hitGoal) {
+    return hitGoal;
   }
   // If the player is moving downwards, set status to FALLING
   if (movementY < 0) {
@@ -110,6 +122,7 @@ export function handleInput(keys, levelData, deltaTime) {
   playerData["translation"][0] += movementX;
   playerData["translation"][1] += movementY;
   playerData["translation"][2] += movementZ;
+  return false;
 }
 
 function movementCollisionDetection(
@@ -119,38 +132,55 @@ function movementCollisionDetection(
   playerData,
   levelGrid,
   levelKill,
+  levelGoal,
 ) {
   const startPosition = playerData.translation;
   const workingPosition = startPosition;
   const scale = playerData.scale;
   const cubes = levelGrid.instances;
   const killBoxes = levelKill.instances;
+  const goalBoxes = levelGoal.instances;
   // Check X
-  const { hit: hitX, hitKill: hitKillX } = resolveAxis(
+  const {
+    hit: hitX,
+    hitKill: hitKillX,
+    hitGoal: hitGoalX,
+  } = resolveAxis(
     workingPosition,
     0,
     movementX,
     scale,
     cubes,
     killBoxes,
+    goalBoxes,
   );
   // Check Z
-  const { hit: hitZ, hitKill: hitKillZ } = resolveAxis(
+  const {
+    hit: hitZ,
+    hitKill: hitKillZ,
+    hitGoal: hitGoalZ,
+  } = resolveAxis(
     workingPosition,
     2,
     movementZ,
     scale,
     cubes,
     killBoxes,
+    goalBoxes,
   );
   // Check Y
-  const { hit: hitY, hitKill: hitKillY } = resolveAxis(
+  const {
+    hit: hitY,
+    hitKill: hitKillY,
+    hitGoal: hitGoalY,
+  } = resolveAxis(
     workingPosition,
     1,
     movementY,
     scale,
     cubes,
     killBoxes,
+    goalBoxes,
   );
   // Land when moving down
   if (hitY && movementY < 0 && playerData.status === MovementStatus.FALLING) {
@@ -161,14 +191,24 @@ function movementCollisionDetection(
     movementY: workingPosition[1] - startPosition[1],
     movementZ: workingPosition[2] - startPosition[2],
     hitKill: hitKillX || hitKillZ || hitKillY,
+    hitGoal: hitGoalX || hitGoalZ || hitGoalY,
   };
 }
 
-function resolveAxis(workingPosition, axis, move, scale, cubes, killBoxes) {
-  let hitKill = false;
-  if (move === 0) return { hit: false, hitKill: false };
-  workingPosition[axis] += move;
+function resolveAxis(
+  workingPosition,
+  axis,
+  move,
+  scale,
+  cubes,
+  killBoxes,
+  goalBoxes,
+) {
   let hit = false;
+  let hitKill = false;
+  let hitGoal = false;
+  if (move === 0) return { hit: false, hitKill: false, hitGoal: false };
+  workingPosition[axis] += move;
   for (const cube of cubes) {
     if (overlap({ translation: workingPosition, scale }, cube)) {
       hit = true;
@@ -184,7 +224,12 @@ function resolveAxis(workingPosition, axis, move, scale, cubes, killBoxes) {
       hitKill = true;
     }
   }
-  return { hit, hitKill };
+  for (const goalBox of goalBoxes) {
+    if (overlap({ translation: workingPosition, scale }, goalBox)) {
+      hitGoal = true;
+    }
+  }
+  return { hit, hitKill, hitGoal };
 }
 
 function overlap(box1, box2) {

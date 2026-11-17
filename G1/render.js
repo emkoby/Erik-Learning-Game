@@ -5,7 +5,7 @@ import {
   makeStructuredView,
 } from "https://greggman.github.io/webgpu-utils/dist/2.x/webgpu-utils.module.js";
 
-export async function initRender(geometryData, levelData) {
+export async function initRender() {
   // Initialize WebGPU
   const adapter = await navigator.gpu?.requestAdapter();
   const device = await adapter?.requestDevice();
@@ -20,6 +20,35 @@ export async function initRender(geometryData, levelData) {
     device,
     format: presentationFormat,
   });
+  // Start canvas observer
+  const observer = new ResizeObserver((entries) => {
+    for (const entry of entries) {
+      const canvas = entry.target;
+      const width = entry.contentBoxSize[0].inlineSize;
+      const height = entry.contentBoxSize[0].blockSize;
+      canvas.width = Math.max(
+        1,
+        Math.min(width, device.limits.maxTextureDimension2D),
+      );
+      canvas.height = Math.max(
+        1,
+        Math.min(height, device.limits.maxTextureDimension2D),
+      );
+    }
+  });
+  observer.observe(canvas);
+  // Return init object
+  const init = {
+    device,
+    context,
+    canvas,
+    presentationFormat,
+  };
+  return init;
+}
+
+export async function loadLevelGraphics(init, geometryData, levelData) {
+  const { device, context, canvas, presentationFormat } = init;
   // Load shaders
   const vertexShaderCode = await (
     await fetch("./shaders/vertex.wgsl?v=" + Date.now())
@@ -139,11 +168,8 @@ export async function initRender(geometryData, levelData) {
     ],
   });
   // Form initialization object
-  const init = {
-    device,
-    context,
+  const levelGraphics = {
     pipeline,
-    canvas,
     levelData,
     vertexBuffer,
     normalBuffer,
@@ -154,36 +180,16 @@ export async function initRender(geometryData, levelData) {
     renderPassDescriptor,
     bindGroup,
   };
-  // Start canvas observer
-  const observer = new ResizeObserver((entries) => {
-    for (const entry of entries) {
-      const canvas = entry.target;
-      const width = entry.contentBoxSize[0].inlineSize;
-      const height = entry.contentBoxSize[0].blockSize;
-      canvas.width = Math.max(
-        1,
-        Math.min(width, device.limits.maxTextureDimension2D),
-      );
-      canvas.height = Math.max(
-        1,
-        Math.min(height, device.limits.maxTextureDimension2D),
-      );
-    }
-    startRender(init, 0);
-  });
-  observer.observe(canvas);
   // Return init object
-  return init;
+  return levelGraphics;
 }
 
 let depthTexture;
-export function startRender(init, currentTime, ALPHA) {
+export function startRender(init, levelGraphics, currentTime, ALPHA) {
   currentTime = currentTime / 1000;
+  const { device, context, canvas, presentationFormat } = init;
   const {
-    device,
-    context,
     pipeline,
-    canvas,
     levelData,
     vertexBuffer,
     normalBuffer,
@@ -193,7 +199,7 @@ export function startRender(init, currentTime, ALPHA) {
     objectsBuffer,
     renderPassDescriptor,
     bindGroup,
-  } = init;
+  } = levelGraphics;
   // Set depth texture
   if (
     !depthTexture ||

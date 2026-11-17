@@ -1,4 +1,4 @@
-import { initRender, startRender } from "./render.js";
+import { initRender, loadLevelGraphics, startRender } from "./render.js";
 import { initGeometry } from "./geometry.js";
 import { generateLevelData } from "./level.js";
 import { handleInput } from "./movement.js";
@@ -6,9 +6,12 @@ import { handleInput } from "./movement.js";
 async function main() {
   // Initialize geometry
   const geometryData = initGeometry();
-  // Initialize level layout
-  const levelData = generateLevelData(geometryData, 1);
-  const init = await initRender(geometryData, levelData);
+  // Initialize level layout and graphics
+  const init = await initRender();
+  let levelNumber = 2;
+  let levelData = generateLevelData(geometryData, levelNumber);
+  let levelGraphics = await loadLevelGraphics(init, geometryData, levelData);
+  let hitGoal = false;
   // Initialize game state
   // Start key listeners
   const keys = {};
@@ -33,23 +36,30 @@ async function main() {
   const MAX_FRAME_TIME = 0.25;
   let previousTime = 0;
   let accumulatedTime = 0;
-  function gameLoop(currentTime) {
+  async function gameLoop(currentTime) {
     requestAnimationFrame(gameLoop);
     let deltaTime = (currentTime - previousTime) / 1000;
     previousTime = currentTime;
     if (deltaTime > MAX_FRAME_TIME) {
       deltaTime = MAX_FRAME_TIME;
     }
+    // If goal completed, move to next level
+    if (hitGoal) {
+      levelNumber++;
+      levelData = generateLevelData(geometryData, levelNumber);
+      levelGraphics = await loadLevelGraphics(init, geometryData, levelData);
+      hitGoal = false;
+    }
     // Game logic
     accumulatedTime += deltaTime;
     while (accumulatedTime >= GAME_STEP) {
       // Handle player input
-      handleInput(keys, levelData, deltaTime);
+      hitGoal = handleInput(keys, levelData, deltaTime);
       accumulatedTime -= GAME_STEP;
     }
     // Game rendering
     const ALPHA = Math.min(accumulatedTime / GAME_STEP, 1);
-    startRender(init, currentTime, ALPHA);
+    startRender(init, levelGraphics, currentTime, ALPHA);
   }
   requestAnimationFrame((time) => {
     previousTime = time;
