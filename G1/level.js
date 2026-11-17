@@ -1,7 +1,6 @@
 export function generateLevelData(geometryData, level) {
   const levelData = {};
   levelData["name"] = `Level ${level}`;
-  console.log(`Generating level data for level ${level}`);
   let levelGrid, levelKill, levelGoal, levelSpawn;
   if (level === 1) {
     ({ levelGrid, levelKill, levelGoal, levelSpawn } = generateLevelGrid1(
