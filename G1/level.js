@@ -1,34 +1,33 @@
 export function generateLevelData(geometryData, level) {
   const levelData = {};
   levelData["name"] = `Level ${level}`;
-  let levelGrid, levelKill, levelGoal, levelSpawn;
+  let levelGrid, levelGridMove, levelKill, levelGoal, levelSpawn;
   if (level === 1) {
-    ({ levelGrid, levelKill, levelGoal, levelSpawn } = generateLevelGrid1(
-      10,
-      10,
-    ));
+    ({ levelGrid, levelGridMove, levelKill, levelGoal, levelSpawn } =
+      generateLevelGrid1(10, 10));
   } else if (level === 2) {
-    ({ levelGrid, levelKill, levelGoal, levelSpawn } = generateLevelGrid2(
-      10,
-      10,
-    ));
+    ({ levelGrid, levelGridMove, levelKill, levelGoal, levelSpawn } =
+      generateLevelGrid2(10, 10));
   } else if (level === 3) {
-    ({ levelGrid, levelKill, levelGoal, levelSpawn } = generateLevelGrid3(
-      16,
-      10,
-    ));
+    ({ levelGrid, levelGridMove, levelKill, levelGoal, levelSpawn } =
+      generateLevelGrid3(10, 10));
+  } else if (level === 4) {
+    ({ levelGrid, levelGridMove, levelKill, levelGoal, levelSpawn } =
+      generateLevelGrid4(10, 10));
   } else {
     levelData["name"] = `Level End`;
-    ({ levelGrid, levelKill, levelGoal, levelSpawn } = generateLevelGridEnd(
-      15,
-      10,
-    ));
+    ({ levelGrid, levelGridMove, levelKill, levelGoal, levelSpawn } =
+      generateLevelGridEnd(10, 10));
   }
   levelData["levelSpawn"] = levelSpawn;
   levelData["geometry"] = {
     levelGrid: {
       shape: geometryData["cube"],
       instances: levelGrid,
+    },
+    levelGridMove: {
+      shape: geometryData["cube"],
+      instances: levelGridMove,
     },
     levelKill: {
       shape: geometryData["cube"],
@@ -56,6 +55,7 @@ export function generateLevelData(geometryData, level) {
           speed: 3.0,
           jumpStrength: 5.0,
           jumpTime: 0,
+          standingOn: null,
         },
       ],
     },
@@ -63,8 +63,32 @@ export function generateLevelData(geometryData, level) {
   return levelData;
 }
 
+export function updateLevelGeometry(levelData, deltaTime) {
+  for (const instance of levelData["geometry"]["levelGridMove"]["instances"]) {
+    const velocity = instance.movement[0];
+    const positionOne = instance.movement[1];
+    const positionTwo = instance.movement[2];
+    // Check movement progress and switch direction if needed
+    if (
+      instance.translation[0] <= positionOne[0] ||
+      instance.translation[0] >= positionTwo[0]
+    ) {
+      instance.movement[0][0] = instance.movement[0][0] * -1;
+      instance.movement[0][1] = instance.movement[0][1] * -1;
+      instance.movement[0][2] = instance.movement[0][2] * -1;
+    }
+    // Apply movement
+    instance.translation = [
+      instance.translation[0] + velocity[0] * deltaTime,
+      instance.translation[1] + velocity[1] * deltaTime,
+      instance.translation[2] + velocity[2] * deltaTime,
+    ];
+  }
+}
+
 function generateLevelGrid1(width, length) {
   const levelGrid = [];
+  const levelGridMove = [];
   const levelKill = [];
   const levelSpawn = [0, 1, 0];
   const levelGoal = [width - 1, 1 + (width + length) / 2, length - 1];
@@ -85,11 +109,12 @@ function generateLevelGrid1(width, length) {
     scale: [width * 10, 1, length * 10],
     color: [0.5, 0.5, 0.5, 0],
   });
-  return { levelGrid, levelKill, levelGoal, levelSpawn };
+  return { levelGrid, levelGridMove, levelKill, levelGoal, levelSpawn };
 }
 
 function generateLevelGrid2(width, length) {
   const levelGrid = [];
+  const levelGridMove = [];
   const levelKill = [];
   const levelSpawn = [0, 4, 0];
   const levelGoal = [Math.ceil(width / 3) * 3 - 3, 5, length - 1];
@@ -112,11 +137,12 @@ function generateLevelGrid2(width, length) {
     scale: [width * 10, 1, length * 10],
     color: [0.5, 0.5, 0.5, 0],
   });
-  return { levelGrid, levelKill, levelGoal, levelSpawn };
+  return { levelGrid, levelGridMove, levelKill, levelGoal, levelSpawn };
 }
 
 function generateLevelGrid3(width, length) {
   const levelGrid = [];
+  const levelGridMove = [];
   const levelKill = [];
   const levelSpawn = [1, 4, 1];
   let maxX = 0;
@@ -132,6 +158,7 @@ function generateLevelGrid3(width, length) {
             rotation: [0, 0, 0],
             scale: [1, 3, 1],
             color: [0.5, 0.5 + (x + z) * 0.05, 0.5 + z * 0.05, 1],
+            movement: [0, [0, 0, 0], [0, 0, 0]],
           });
         }
       }
@@ -145,11 +172,57 @@ function generateLevelGrid3(width, length) {
     scale: [width * 10, 1, length * 10],
     color: [0.5, 0.5, 0.5, 0],
   });
-  return { levelGrid, levelKill, levelGoal, levelSpawn };
+  return { levelGrid, levelGridMove, levelKill, levelGoal, levelSpawn };
+}
+
+function generateLevelGrid4(width, length) {
+  const levelGrid = [];
+  const levelGridMove = [];
+  const levelKill = [];
+  const levelSpawn = [0, 4, 0];
+  let maxX = 0;
+  let maxZ = 0;
+  for (let x = 0; x < width; x++) {
+    for (let z = 0; z < length; z++) {
+      if (z % 6 === 0) {
+        if (x > maxX) maxX = x;
+        if (z > maxZ) maxZ = z;
+        levelGrid.push({
+          translation: [x, 1.5, z],
+          rotation: [0, 0, 0],
+          scale: [1, 3, 1],
+          color: [0.5 + x * 0.05, 0.5 + z * 0.05, 0.5 + z * 0.05, 1],
+        });
+        if (x === width / 2 && z + 5 < length) {
+          levelGridMove.push({
+            translation: [x, 2.5, z + 3],
+            rotation: [0, 0, 0],
+            scale: [1, 1, 1],
+            color: [0.5 + x * 0.05, 0.5 + z * 0.05, 0.5 + z * 0.05, 1],
+            movement: [
+              [-2, 0, 0],
+              [0, 2.5, z + 3],
+              [width - 1, 2.5, z + 3],
+            ],
+          });
+        }
+      }
+    }
+  }
+  const levelGoal = [maxX, 5, maxZ];
+  // Set kill box
+  levelKill.push({
+    translation: [0, -1, 0],
+    rotation: [0, 0, 0],
+    scale: [width * 10, 1, length * 10],
+    color: [0.5, 0.5, 0.5, 0],
+  });
+  return { levelGrid, levelGridMove, levelKill, levelGoal, levelSpawn };
 }
 
 function generateLevelGridEnd(width, length) {
   const levelGrid = [];
+  const levelGridMove = [];
   const levelKill = [];
   const levelSpawn = [0, 1, 0];
   const levelGoal = [0, 2, length / 3];
@@ -170,5 +243,5 @@ function generateLevelGridEnd(width, length) {
     scale: [width * 10, 1, length * 10],
     color: [0.5, 0.5, 0.5, 0],
   });
-  return { levelGrid, levelKill, levelGoal, levelSpawn };
+  return { levelGrid, levelGridMove, levelKill, levelGoal, levelSpawn };
 }

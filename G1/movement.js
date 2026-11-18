@@ -12,6 +12,7 @@ const EPSILON = 0.0001;
 export function handleInput(keys, levelData, deltaTime) {
   const playerData = levelData["geometry"]["player"]["instances"][0];
   const levelGrid = levelData["geometry"]["levelGrid"];
+  const levelGridMove = levelData["geometry"]["levelGridMove"];
   const levelKill = levelData["geometry"]["levelKill"];
   const levelGoal = levelData["geometry"]["levelGoal"];
   if (!playerData["status"]) {
@@ -103,17 +104,19 @@ export function handleInput(keys, levelData, deltaTime) {
       movementZ,
       playerData,
       levelGrid,
+      levelGridMove,
       levelKill,
       levelGoal,
+      deltaTime,
     ));
   // If player hit killbox, reset
   if (hitKill) {
     resetPlayer(playerData, levelData["levelSpawn"]);
-    return;
+    return false;
   }
   // If player hit goal, set hitGoal to true
   if (hitGoal) {
-    return hitGoal;
+    return true;
   }
   // If the player is moving downwards, set status to FALLING
   if (movementY < 0) {
@@ -122,6 +125,11 @@ export function handleInput(keys, levelData, deltaTime) {
   playerData["translation"][0] += movementX;
   playerData["translation"][1] += movementY;
   playerData["translation"][2] += movementZ;
+  if (playerData["status"] === MovementStatus.STANDING) {
+    playerData["standingOn"] = null;
+  } else if (playerData["status"] === MovementStatus.FALLING) {
+    playerData["standingOn"] = null;
+  }
   return false;
 }
 
@@ -131,13 +139,16 @@ function movementCollisionDetection(
   movementZ,
   playerData,
   levelGrid,
+  levelGridMove,
   levelKill,
   levelGoal,
+  deltaTime,
 ) {
   const startPosition = playerData.translation;
   const workingPosition = startPosition;
   const scale = playerData.scale;
   const cubes = levelGrid.instances;
+  const movingCubes = levelGridMove.instances;
   const killBoxes = levelKill.instances;
   const goalBoxes = levelGoal.instances;
   // Check X
@@ -151,8 +162,10 @@ function movementCollisionDetection(
     movementX,
     scale,
     cubes,
+    movingCubes,
     killBoxes,
     goalBoxes,
+    deltaTime,
   );
   // Check Z
   const {
@@ -165,8 +178,10 @@ function movementCollisionDetection(
     movementZ,
     scale,
     cubes,
+    movingCubes,
     killBoxes,
     goalBoxes,
+    deltaTime,
   );
   // Check Y
   const {
@@ -179,8 +194,10 @@ function movementCollisionDetection(
     movementY,
     scale,
     cubes,
+    movingCubes,
     killBoxes,
     goalBoxes,
+    deltaTime,
   );
   // Land when moving down
   if (hitY && movementY < 0 && playerData.status === MovementStatus.FALLING) {
@@ -201,10 +218,13 @@ function resolveAxis(
   move,
   scale,
   cubes,
+  movingCubes,
   killBoxes,
   goalBoxes,
+  deltaTime,
 ) {
   let hit = false;
+  let hitMove = [0, 0, 0];
   let hitKill = false;
   let hitGoal = false;
   if (move === 0) return { hit: false, hitKill: false, hitGoal: false };
@@ -217,6 +237,22 @@ function resolveAxis(
         move > 0
           ? cube.translation[axis] - halfSum
           : cube.translation[axis] + halfSum;
+    }
+  }
+  for (const movingCube of movingCubes) {
+    if (overlap({ translation: workingPosition, scale }, movingCube)) {
+      hit = true;
+      const halfSum = (scale[axis] + movingCube.scale[axis]) / 2 + EPSILON;
+      workingPosition[axis] =
+        move > 0
+          ? movingCube.translation[axis] - halfSum
+          : movingCube.translation[axis] + halfSum;
+      workingPosition[0] =
+        workingPosition[0] + movingCube.movement[0][0] * deltaTime;
+      workingPosition[1] =
+        workingPosition[1] + movingCube.movement[0][1] * deltaTime;
+      workingPosition[2] =
+        workingPosition[2] + movingCube.movement[0][2] * deltaTime;
     }
   }
   for (const killBox of killBoxes) {
@@ -250,4 +286,6 @@ function resetPlayer(playerData, levelSpawn) {
   playerData["translation"] = [levelSpawn[0], levelSpawn[1], levelSpawn[2]];
   playerData["rotation"] = [0, 0, 0];
   playerData["status"] = MovementStatus.STANDING;
+  playerData["jumpTime"] = 0;
+  playerData["standingOn"] = null;
 }

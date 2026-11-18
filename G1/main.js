@@ -1,6 +1,6 @@
 import { initRender, loadLevelGraphics, startRender } from "./render.js";
 import { initGeometry } from "./geometry.js";
-import { generateLevelData } from "./level.js";
+import { generateLevelData, updateLevelGeometry } from "./level.js";
 import { handleInput } from "./movement.js";
 
 async function main() {
@@ -8,7 +8,7 @@ async function main() {
   const geometryData = initGeometry();
   // Initialize level layout and graphics
   const init = await initRender();
-  let levelNumber = 3;
+  let levelNumber = 1;
   let levelData = generateLevelData(geometryData, levelNumber);
   let levelGraphics = await loadLevelGraphics(init, geometryData, levelData);
   let hitGoal = false;
@@ -59,6 +59,7 @@ async function main() {
     while (accumulatedTime >= GAME_STEP) {
       // Handle player input
       hitGoal = handleInput(keys, levelData, deltaTime);
+      updateLevelGeometry(levelData, deltaTime);
       accumulatedTime -= GAME_STEP;
     }
     // Game rendering
