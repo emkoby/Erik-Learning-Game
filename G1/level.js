@@ -4,20 +4,20 @@ export function generateLevelData(geometryData, level) {
   let levelGrid, levelGridMove, levelKill, levelGoal, levelSpawn;
   if (level === 1) {
     ({ levelGrid, levelGridMove, levelKill, levelGoal, levelSpawn } =
-      generateLevelGrid1(10, 10));
+      generateLevelGrid1(5, 5));
   } else if (level === 2) {
     ({ levelGrid, levelGridMove, levelKill, levelGoal, levelSpawn } =
-      generateLevelGrid2(10, 10));
+      generateLevelGrid2(10, 5));
   } else if (level === 3) {
     ({ levelGrid, levelGridMove, levelKill, levelGoal, levelSpawn } =
-      generateLevelGrid3(10, 10));
+      generateLevelGrid3(16, 10));
   } else if (level === 4) {
     ({ levelGrid, levelGridMove, levelKill, levelGoal, levelSpawn } =
-      generateLevelGrid4(10, 10));
+      generateLevelGrid4(5, 15));
   } else {
     levelData["name"] = `Level End`;
     ({ levelGrid, levelGridMove, levelKill, levelGoal, levelSpawn } =
-      generateLevelGridEnd(10, 10));
+      generateLevelGridEnd(5, 5));
   }
   levelData["levelSpawn"] = levelSpawn;
   levelData["geometry"] = {
@@ -52,6 +52,7 @@ export function generateLevelData(geometryData, level) {
           rotation: [0, 0, 0],
           scale: [0.7, 0.7, 0.7],
           color: [1, 1, 1, 1],
+          status: "STANDING",
           speed: 3.0,
           jumpStrength: 5.0,
           jumpTime: 0,

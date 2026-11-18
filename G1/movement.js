@@ -118,10 +118,6 @@ export function handleInput(keys, levelData, deltaTime) {
   if (hitGoal) {
     return true;
   }
-  // If the player is moving downwards, set status to FALLING
-  if (movementY < 0) {
-    playerData["status"] = MovementStatus.FALLING;
-  }
   playerData["translation"][0] += movementX;
   playerData["translation"][1] += movementY;
   playerData["translation"][2] += movementZ;
@@ -199,9 +195,8 @@ function movementCollisionDetection(
     goalBoxes,
     deltaTime,
   );
-  // Land when moving down
-  if (hitY && movementY < 0 && playerData.status === MovementStatus.FALLING) {
-    playerData.status = MovementStatus.STANDING;
+  if (movementY < 0) {
+    playerData.status = hitY ? MovementStatus.STANDING : MovementStatus.FALLING;
   }
   return {
     movementX: workingPosition[0] - startPosition[0],
