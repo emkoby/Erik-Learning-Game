@@ -372,7 +372,7 @@ function generateLevelGrid7(width, length) {
             movementY = 2;
           }
           levelGridMove.push({
-            translation: [x, (width - x + z) / 6 - 3, z - 2],
+            translation: [x, (width - x + z) / 6 - 2.5, z - 2],
             rotation: [0, 0, 0],
             scale: [1, 1 + (width - x + z) / 3, 1],
             color: [
@@ -383,7 +383,7 @@ function generateLevelGrid7(width, length) {
             ],
             movement: [
               [0, movementY, 0],
-              [x, (width - x + z) / 6 - 6, z - 2],
+              [x, (width - x + z) / 6 - 5, z - 2],
               [x, (width - x + z) / 6, z - 2],
             ],
           });
