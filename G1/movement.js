@@ -147,6 +147,40 @@ function movementCollisionDetection(
   const movingCubes = levelGridMove.instances;
   const killBoxes = levelKill.instances;
   const goalBoxes = levelGoal.instances;
+  for (const movingCube of movingCubes) {
+    if (overlap({ translation: workingPosition, scale }, movingCube)) {
+      let axis = 0;
+      let penetration = Infinity;
+      let previousSide;
+      for (let i = 0; i < 3; i++) {
+        const halfSum = (scale[i] + movingCube.scale[i]) / 2;
+        const previous = movingCube.previousTranslation;
+        if (
+          previous &&
+          previous[i] !== movingCube.translation[i] &&
+          Math.abs(workingPosition[i] - previous[i]) >= halfSum - EPSILON
+        ) {
+          axis = i;
+          previousSide = workingPosition[i] - previous[i];
+          break;
+        }
+        const depth =
+          halfSum - Math.abs(workingPosition[i] - movingCube.translation[i]);
+        if (depth < penetration) {
+          axis = i;
+          penetration = depth;
+        }
+      }
+      const side =
+        previousSide ||
+        workingPosition[axis] - movingCube.translation[axis] ||
+        movingCube.movement[0][axis] ||
+        1;
+      workingPosition[axis] =
+        movingCube.translation[axis] +
+        Math.sign(side) * ((scale[axis] + movingCube.scale[axis]) / 2 + EPSILON);
+    }
+  }
   // Check X
   const {
     hit: hitX,
@@ -219,13 +253,12 @@ function resolveAxis(
   deltaTime,
 ) {
   let hit = false;
-  let hitMove = [0, 0, 0];
   let hitKill = false;
   let hitGoal = false;
-  if (move === 0) return { hit: false, hitKill: false, hitGoal: false };
+  const axisStart = workingPosition[axis];
   workingPosition[axis] += move;
   for (const cube of cubes) {
-    if (overlap({ translation: workingPosition, scale }, cube)) {
+    if (move !== 0 && overlap({ translation: workingPosition, scale }, cube)) {
       hit = true;
       const halfSum = (scale[axis] + cube.scale[axis]) / 2 + EPSILON;
       workingPosition[axis] =
@@ -235,19 +268,18 @@ function resolveAxis(
     }
   }
   for (const movingCube of movingCubes) {
-    if (overlap({ translation: workingPosition, scale }, movingCube)) {
+    if (move !== 0 && overlap({ translation: workingPosition, scale }, movingCube)) {
       hit = true;
       const halfSum = (scale[axis] + movingCube.scale[axis]) / 2 + EPSILON;
       workingPosition[axis] =
-        move > 0
+        axisStart < movingCube.translation[axis]
           ? movingCube.translation[axis] - halfSum
           : movingCube.translation[axis] + halfSum;
-      workingPosition[0] =
-        workingPosition[0] + movingCube.movement[0][0] * deltaTime;
-      workingPosition[1] =
-        workingPosition[1] + movingCube.movement[0][1] * deltaTime;
-      workingPosition[2] =
-        workingPosition[2] + movingCube.movement[0][2] * deltaTime;
+      if (axis === 1 && move < 0) {
+        workingPosition[0] += movingCube.movement[0][0] * deltaTime;
+        workingPosition[1] += movingCube.movement[0][1] * deltaTime;
+        workingPosition[2] += movingCube.movement[0][2] * deltaTime;
+      }
     }
   }
   for (const killBox of killBoxes) {
