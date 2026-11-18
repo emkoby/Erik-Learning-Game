@@ -13,7 +13,7 @@ export function generateLevelData(geometryData, level) {
       generateLevelGrid3(16, 10));
   } else if (level === 4) {
     ({ levelGrid, levelGridMove, levelKill, levelGoal, levelSpawn } =
-      generateLevelGrid4(5, 15));
+      generateLevelGrid4(10, 15));
   } else if (level === 5) {
     ({ levelGrid, levelGridMove, levelKill, levelGoal, levelSpawn } =
       generateLevelGrid5(3, 20));
@@ -93,7 +93,17 @@ export function updateLevelGeometry(levelData, deltaTime) {
       instance.translation[0] >= positionTwo[0]
     ) {
       instance.movement[0][0] = instance.movement[0][0] * -1;
+    }
+    if (
+      instance.translation[1] <= positionOne[1] ||
+      instance.translation[1] >= positionTwo[1]
+    ) {
       instance.movement[0][1] = instance.movement[0][1] * -1;
+    }
+    if (
+      instance.translation[2] <= positionOne[2] ||
+      instance.translation[2] >= positionTwo[2]
+    ) {
       instance.movement[0][2] = instance.movement[0][2] * -1;
     }
     // Apply movement
@@ -336,15 +346,49 @@ function generateLevelGrid7(width, length) {
   const levelGridMove = [];
   const levelKill = [];
   const levelSpawn = [0, 1, 0];
-  const levelGoal = [width - 1, 1 + (width + length) / 2, length - 1];
+  let maxX = 0;
+  let maxZ = 0;
   for (let x = 0; x < width; x++) {
     for (let z = 0; z < length; z++) {
-      levelGrid.push({
-        translation: [x, (x + z) / 4, z],
-        rotation: [0, 0, 0],
-        scale: [1, 1 + (x + z) / 2, 1],
-        color: [0.5 + x * 0.05, 0.5, 0.5 + z * 0.05, 1],
-      });
+      if (z % 4 === 0) {
+        maxX = Math.max(maxX, x);
+        maxZ = Math.max(maxZ, z);
+        levelGrid.push({
+          translation: [x, (x + z) / 4, z],
+          rotation: [0, 0, 0],
+          scale: [1, 1 + (x + z) / 2, 1],
+          color: [
+            0.2 + ((x + z) / 2) * 0.05,
+            0.2 + ((x + z) / 2) * 0.05,
+            0.2 + ((x + z) / 2) * 0.1,
+            1,
+          ],
+        });
+        if (z - 2 > 0) {
+          let movementY = 0;
+          if (x % 2 === 0) {
+            movementY = -2;
+          } else {
+            movementY = 2;
+          }
+          levelGridMove.push({
+            translation: [x, (width - x + z) / 6 + 1.5, z - 2],
+            rotation: [0, 0, 0],
+            scale: [1, 1 + (width - x + z) / 3, 1],
+            color: [
+              0.2 + (width - x + z) * 0.05,
+              0.2 + (width - x + z) * 0.05,
+              0.2 + (width - x + z) * 0.1,
+              1,
+            ],
+            movement: [
+              [0, movementY, 0],
+              [x, (width - x + z) / 6, z - 2],
+              [x, (width - x + z) / 6 + 3, z - 2],
+            ],
+          });
+        }
+      }
     }
   }
   // Set kill box
@@ -354,6 +398,7 @@ function generateLevelGrid7(width, length) {
     scale: [width * 10, 1, length * 10],
     color: [0.5, 0.5, 0.5, 0],
   });
+  const levelGoal = [maxX, 2 + (maxX + maxZ) / 2, maxZ];
   return { levelGrid, levelGridMove, levelKill, levelGoal, levelSpawn };
 }
 
