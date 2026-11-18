@@ -8,7 +8,7 @@ async function main() {
   const geometryData = initGeometry();
   // Initialize level layout and graphics
   const init = await initRender();
-  let levelNumber = 7;
+  let levelNumber = 1;
   let levelData = generateLevelData(geometryData, levelNumber);
   let levelGraphics = await loadLevelGraphics(init, geometryData, levelData);
   let hitGoal = false;
