@@ -58,8 +58,8 @@ async function main() {
     accumulatedTime += deltaTime;
     while (accumulatedTime >= GAME_STEP) {
       // Handle player input
-      hitGoal = handleInput(keys, levelData, deltaTime);
-      updateLevelGeometry(levelData, deltaTime);
+      hitGoal = handleInput(keys, levelData, GAME_STEP);
+      updateLevelGeometry(levelData, GAME_STEP);
       accumulatedTime -= GAME_STEP;
     }
     // Game rendering
