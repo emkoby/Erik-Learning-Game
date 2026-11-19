@@ -575,7 +575,7 @@ function generateLevelGrid10(width, length) {
       }
     }
   }
-  const levelGoal = [width / 2 - 0.5, 7, maxZ];
+  const levelGoal = [width / 2 - 0.5, 5, maxZ];
   // Set kill box
   levelKill.push({
     translation: [0, -1, 0],
